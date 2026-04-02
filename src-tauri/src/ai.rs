@@ -2,7 +2,7 @@ use futures_util::StreamExt;
 use reqwest::{header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION, CONTENT_TYPE}, multipart::{Form, Part}, Client, Method, Proxy, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, error::Error as StdError, str::FromStr};
 use tauri::{ipc::Channel, State};
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
@@ -100,6 +100,33 @@ fn abort_error() -> String {
     "Request was aborted.".to_string()
 }
 
+fn format_reqwest_error(context: &str, error: reqwest::Error) -> String {
+    let mut details = vec![format!("{context}: {error}")];
+
+    details.push(format!(
+        "kind(connect={}, timeout={}, request={}, body={}, decode={}, redirect={}, status={})",
+        error.is_connect(),
+        error.is_timeout(),
+        error.is_request(),
+        error.is_body(),
+        error.is_decode(),
+        error.is_redirect(),
+        error.is_status()
+    ));
+
+    if let Some(url) = error.url() {
+        details.push(format!("url={url}"));
+    }
+
+    let mut source = error.source();
+    while let Some(cause) = source {
+        details.push(format!("cause: {cause}"));
+        source = cause.source();
+    }
+
+    details.join(" | ")
+}
+
 fn build_client(config: &AiConfigPayload) -> Result<Client, String> {
     let mut builder = Client::builder();
 
@@ -191,12 +218,12 @@ async fn run_json_request(
                 }
                 return Err(abort_error())
             },
-            response = send_future => response.map_err(|error| format!("Request failed: {error}"))?,
+            response = send_future => response.map_err(|error| format_reqwest_error("Request failed", error))?,
         }
     } else {
         send_future
             .await
-            .map_err(|error| format!("Request failed: {error}"))?
+            .map_err(|error| format_reqwest_error("Request failed", error))?
     };
 
     let result = read_response_json(response).await;
@@ -294,12 +321,12 @@ pub async fn ai_binary_request(
                 }
                 return Err(abort_error())
             },
-            response = send_future => response.map_err(|error| format!("Request failed: {error}"))?,
+            response = send_future => response.map_err(|error| format_reqwest_error("Request failed", error))?,
         }
     } else {
         send_future
             .await
-            .map_err(|error| format!("Request failed: {error}"))?
+            .map_err(|error| format_reqwest_error("Request failed", error))?
     };
 
     let status = response.status();
@@ -360,12 +387,12 @@ pub async fn ai_multipart_request(
                 }
                 return Err(abort_error())
             },
-            response = send_future => response.map_err(|error| format!("Request failed: {error}"))?,
+            response = send_future => response.map_err(|error| format_reqwest_error("Request failed", error))?,
         }
     } else {
         send_future
             .await
-            .map_err(|error| format!("Request failed: {error}"))?
+            .map_err(|error| format_reqwest_error("Request failed", error))?
     };
 
     let result = read_response_json(response).await;
@@ -395,7 +422,7 @@ pub async fn ai_chat_completion_stream(
             .post(url)
             .headers(headers)
             .json(&request.body)
-            .send() => response.map_err(|error| format!("Request failed: {error}"))?,
+            .send() => response.map_err(|error| format_reqwest_error("Request failed", error))?,
     };
 
     if !response.status().is_success() {
@@ -421,7 +448,7 @@ pub async fn ai_chat_completion_stream(
             break;
         };
 
-        let chunk = item.map_err(|error| format!("Stream read failed: {error}"))?;
+        let chunk = item.map_err(|error| format_reqwest_error("Stream read failed", error))?;
         for message in decoder.push(chunk.as_ref()) {
             if message == "[DONE]" {
                 let _ = on_event.send(AiStreamEvent::Done);
