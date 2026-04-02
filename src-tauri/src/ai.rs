@@ -1,5 +1,5 @@
 use futures_util::StreamExt;
-use reqwest::{header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION, CONTENT_TYPE}, multipart::{Form, Part}, Client, Method, Url};
+use reqwest::{header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION, CONTENT_TYPE}, multipart::{Form, Part}, Client, Method, Proxy, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, str::FromStr};
@@ -48,6 +48,7 @@ pub struct AiConfigPayload {
     pub base_url: String,
     pub api_key: Option<String>,
     pub custom_headers: Option<HashMap<String, String>>,
+    pub proxy: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -99,8 +100,16 @@ fn abort_error() -> String {
     "Request was aborted.".to_string()
 }
 
-fn build_client() -> Result<Client, String> {
-    Client::builder()
+fn build_client(config: &AiConfigPayload) -> Result<Client, String> {
+    let mut builder = Client::builder();
+
+    if let Some(proxy_url) = config.proxy.as_ref().map(|value| value.trim()).filter(|value| !value.is_empty()) {
+        let proxy = Proxy::all(proxy_url)
+            .map_err(|error| format!("Invalid proxy URL: {error}"))?;
+        builder = builder.proxy(proxy);
+    }
+
+    builder
         .build()
         .map_err(|error| format!("Failed to build HTTP client: {error}"))
 }
@@ -156,7 +165,7 @@ async fn run_json_request(
     request: AiJsonRequest,
     manager: &AiRequestManager,
 ) -> Result<Value, String> {
-    let client = build_client()?;
+    let client = build_client(&request.config)?;
     let url = build_url(&request.config.base_url, &request.path)?;
     let method = Method::from_str(request.method.as_deref().unwrap_or("POST"))
         .map_err(|error| format!("Invalid HTTP method: {error}"))?;
@@ -260,7 +269,7 @@ pub async fn ai_binary_request(
     request: AiJsonRequest,
     manager: State<'_, AiRequestManager>,
 ) -> Result<Vec<u8>, String> {
-    let client = build_client()?;
+    let client = build_client(&request.config)?;
     let url = build_url(&request.config.base_url, &request.path)?;
     let method = Method::from_str(request.method.as_deref().unwrap_or("POST"))
         .map_err(|error| format!("Invalid HTTP method: {error}"))?;
@@ -318,7 +327,7 @@ pub async fn ai_multipart_request(
     request: AiMultipartRequest,
     manager: State<'_, AiRequestManager>,
 ) -> Result<Value, String> {
-    let client = build_client()?;
+    let client = build_client(&request.config)?;
     let url = build_url(&request.config.base_url, &request.path)?;
     let headers = build_headers(&request.config, false)?;
     let cancellation = if let Some(request_id) = &request.request_id {
@@ -372,7 +381,7 @@ pub async fn ai_chat_completion_stream(
     on_event: Channel<AiStreamEvent>,
     manager: State<'_, AiRequestManager>,
 ) -> Result<(), String> {
-    let client = build_client()?;
+    let client = build_client(&request.config)?;
     let url = build_url(&request.config.base_url, "/chat/completions")?;
     let headers = build_headers(&request.config, true)?;
     let cancellation = manager.register(&request.request_id).await;
