@@ -54,13 +54,5 @@
       "entitlements": null,
       "exceptionDomain": null
     }
-  },
-  "plugins": {
-    "updater": {
-      "pubkey": null,                                                                                                                                                                              
-      "endpoints": [],   
-      "createUpdaterArtifacts": true,
-      "dangerousInsecureTransportProtocol": true
-    }
   }
 }
