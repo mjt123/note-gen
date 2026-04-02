@@ -10,6 +10,7 @@ interface JsonRequestPayload {
     baseUrl: string
     apiKey?: string
     customHeaders?: Record<string, string>
+    proxy?: string
   }
   path: string
   method?: string
@@ -22,6 +23,7 @@ interface MultipartRequestPayload {
     baseUrl: string
     apiKey?: string
     customHeaders?: Record<string, string>
+    proxy?: string
   }
   path: string
   fields?: Record<string, string>
@@ -112,6 +114,7 @@ function normalizeConfig(aiConfig?: AiConfig) {
     baseUrl: aiConfig?.baseURL || '',
     apiKey: aiConfig?.apiKey,
     customHeaders: aiConfig?.customHeaders,
+    proxy: aiConfig?.proxy,
   }
 }
 
