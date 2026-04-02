@@ -122,6 +122,7 @@ export interface AiConfig {
   title: string
   apiKey?: string
   baseURL?: string
+  proxy?: string
   templateKey?: string
   templateSource?: 'builtin' | 'remote' | 'custom'
   icon?: string
