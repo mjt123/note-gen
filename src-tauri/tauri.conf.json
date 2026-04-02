@@ -57,7 +57,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "",                                                                                                                                                                              
+      "pubkey": null,                                                                                                                                                                              
       "endpoints": [],   
       "createUpdaterArtifacts": true,
       "dangerousInsecureTransportProtocol": true
