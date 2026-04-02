@@ -134,6 +134,9 @@ fn build_client(config: &AiConfigPayload) -> Result<Client, String> {
         let proxy = Proxy::all(proxy_url)
             .map_err(|error| format!("Invalid proxy URL: {error}"))?;
         builder = builder.proxy(proxy);
+    } else {
+        // Prevent inheriting system proxy env vars when app proxy is unset.
+        builder = builder.no_proxy();
     }
 
     builder
