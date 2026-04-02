@@ -265,8 +265,13 @@ export async function prepareMessages(
 export async function createOpenAIClient(AiConfig?: AiConfig): Promise<OpenAICompatibleClient> {
   const store = await Store.load('store.json')
 
+  const proxy = await store.get<string>('proxy')
+
   if (AiConfig) {
-    return createTauriOpenAIClient(AiConfig)
+    return createTauriOpenAIClient({
+      ...AiConfig,
+      proxy: AiConfig.proxy || proxy,
+    })
   }
 
   const baseURL = await store.get<string>('baseURL')
@@ -277,5 +282,6 @@ export async function createOpenAIClient(AiConfig?: AiConfig): Promise<OpenAICom
     title: 'Runtime',
     baseURL,
     apiKey,
+    proxy,
   })
 }
