@@ -100,8 +100,8 @@ fn abort_error() -> String {
     "Request was aborted.".to_string()
 }
 
-fn format_reqwest_error(context: &str, error: reqwest::Error) -> String {
-    let mut details = vec![format!("{context}: {error}")];
+fn format_reqwest_error(context: &str, request_ctx: &str, error: reqwest::Error) -> String {
+    let mut details = vec![format!("{context}: {error}"), format!("request: {request_ctx}")];
 
     details.push(format!(
         "kind(connect={}, timeout={}, request={}, body={}, decode={}, redirect={}, status={})",
@@ -125,6 +125,17 @@ fn format_reqwest_error(context: &str, error: reqwest::Error) -> String {
     }
 
     details.join(" | ")
+}
+
+fn request_context(config: &AiConfigPayload, path: &str) -> String {
+    let proxy = config
+        .proxy
+        .as_ref()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .unwrap_or("<none>");
+
+    format!("base_url={} path={} proxy={}", config.base_url, path, proxy)
 }
 
 fn build_client(config: &AiConfigPayload) -> Result<Client, String> {
@@ -200,6 +211,7 @@ async fn run_json_request(
     let method = Method::from_str(request.method.as_deref().unwrap_or("POST"))
         .map_err(|error| format!("Invalid HTTP method: {error}"))?;
     let headers = build_headers(&request.config, request.body.is_some())?;
+    let req_ctx = request_context(&request.config, &request.path);
     let cancellation = if let Some(request_id) = &request.request_id {
         Some(manager.register(request_id).await)
     } else {
@@ -221,12 +233,12 @@ async fn run_json_request(
                 }
                 return Err(abort_error())
             },
-            response = send_future => response.map_err(|error| format_reqwest_error("Request failed", error))?,
+            response = send_future => response.map_err(|error| format_reqwest_error("Request failed", &req_ctx, error))?,
         }
     } else {
         send_future
             .await
-            .map_err(|error| format_reqwest_error("Request failed", error))?
+            .map_err(|error| format_reqwest_error("Request failed", &req_ctx, error))?
     };
 
     let result = read_response_json(response).await;
@@ -304,6 +316,7 @@ pub async fn ai_binary_request(
     let method = Method::from_str(request.method.as_deref().unwrap_or("POST"))
         .map_err(|error| format!("Invalid HTTP method: {error}"))?;
     let headers = build_headers(&request.config, request.body.is_some())?;
+    let req_ctx = request_context(&request.config, &request.path);
     let cancellation = if let Some(request_id) = &request.request_id {
         Some(manager.register(request_id).await)
     } else {
@@ -324,12 +337,12 @@ pub async fn ai_binary_request(
                 }
                 return Err(abort_error())
             },
-            response = send_future => response.map_err(|error| format_reqwest_error("Request failed", error))?,
+            response = send_future => response.map_err(|error| format_reqwest_error("Request failed", &req_ctx, error))?,
         }
     } else {
         send_future
             .await
-            .map_err(|error| format_reqwest_error("Request failed", error))?
+            .map_err(|error| format_reqwest_error("Request failed", &req_ctx, error))?
     };
 
     let status = response.status();
@@ -360,6 +373,7 @@ pub async fn ai_multipart_request(
     let client = build_client(&request.config)?;
     let url = build_url(&request.config.base_url, &request.path)?;
     let headers = build_headers(&request.config, false)?;
+    let req_ctx = request_context(&request.config, &request.path);
     let cancellation = if let Some(request_id) = &request.request_id {
         Some(manager.register(request_id).await)
     } else {
@@ -390,12 +404,12 @@ pub async fn ai_multipart_request(
                 }
                 return Err(abort_error())
             },
-            response = send_future => response.map_err(|error| format_reqwest_error("Request failed", error))?,
+            response = send_future => response.map_err(|error| format_reqwest_error("Request failed", &req_ctx, error))?,
         }
     } else {
         send_future
             .await
-            .map_err(|error| format_reqwest_error("Request failed", error))?
+            .map_err(|error| format_reqwest_error("Request failed", &req_ctx, error))?
     };
 
     let result = read_response_json(response).await;
@@ -414,6 +428,7 @@ pub async fn ai_chat_completion_stream(
     let client = build_client(&request.config)?;
     let url = build_url(&request.config.base_url, "/chat/completions")?;
     let headers = build_headers(&request.config, true)?;
+    let req_ctx = request_context(&request.config, "/chat/completions");
     let cancellation = manager.register(&request.request_id).await;
 
     let response = tokio::select! {
@@ -425,7 +440,7 @@ pub async fn ai_chat_completion_stream(
             .post(url)
             .headers(headers)
             .json(&request.body)
-            .send() => response.map_err(|error| format_reqwest_error("Request failed", error))?,
+            .send() => response.map_err(|error| format_reqwest_error("Request failed", &req_ctx, error))?,
     };
 
     if !response.status().is_success() {
@@ -451,7 +466,7 @@ pub async fn ai_chat_completion_stream(
             break;
         };
 
-        let chunk = item.map_err(|error| format_reqwest_error("Stream read failed", error))?;
+        let chunk = item.map_err(|error| format_reqwest_error("Stream read failed", &req_ctx, error))?;
         for message in decoder.push(chunk.as_ref()) {
             if message == "[DONE]" {
                 let _ = on_event.send(AiStreamEvent::Done);
