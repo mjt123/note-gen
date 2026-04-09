@@ -1392,7 +1392,11 @@
         "description": "记录一段文本，笔记整理时将插入到合适的位置。",
         "characterCount": "{count} 字符",
         "save": "记录",
-        "autoReadClipboard": "自动读取剪贴板文本"
+        "autoReadClipboard": "自动读取剪贴板文本",
+        "titleLabel": "标题",
+        "titlePlaceholder": "输入标题（可选）",
+        "selectTag": "选择标签",
+        "contentPlaceholder": "输入文本内容..."
       },
       "link": {
         "title": "链接记录",
@@ -2033,6 +2037,15 @@
       "title": "AI 错误",
       "noAddress": "请先设置 AI 地址"
     }
+  },
+  "edgeMode": {
+    "title": "边缘速记",
+    "enter": "进入边缘速记模式",
+    "exit": "退出边缘速记模式",
+    "expandToMain": "恢复主界面",
+    "markList": "便签列表",
+    "noMarkSelected": "选择一条便签查看详情",
+    "hoverToExpand": "悬浮展开"
   },
   "article": {
     "sync": {
