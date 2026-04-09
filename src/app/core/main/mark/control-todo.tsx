@@ -81,10 +81,16 @@ export function ControlTodo() {
 
   const handleOpen = useCallback(() => {
     setOpen(true)
+    emitter.emit('edge-dialog-open')
   }, [])
 
   const handleOpenChange = useCallback((open: boolean) => {
     setOpen(open)
+    if (open) {
+      emitter.emit('edge-dialog-open')
+    } else {
+      emitter.emit('edge-dialog-close')
+    }
   }, [])
 
   useEffect(() => {
