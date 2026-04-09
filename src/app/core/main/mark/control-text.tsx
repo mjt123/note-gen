@@ -2,6 +2,7 @@ import { TooltipButton } from "@/components/tooltip-button"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { useTranslations } from 'next-intl'
 import {
   Dialog,
@@ -22,6 +23,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { insertMark } from "@/db/marks"
 import useMarkStore from "@/stores/mark"
 import useTagStore from "@/stores/tag"
@@ -41,11 +43,13 @@ export function ControlText() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('')
+  const [title, setTitle] = useState('')
+  const [selectedTagId, setSelectedTagId] = useState<number | null>(null)
   const [autoReadClipboard, setAutoReadClipboard] = useState(true)
   const isMobile = useIsMobile() || checkIsMobileDevice()
   const onboardingPrefillRef = useRef<string | null>(null)
 
-  const { currentTagId, fetchTags, getCurrentTag } = useTagStore()
+  const { currentTagId, tags, fetchTags, getCurrentTag } = useTagStore()
   const { fetchMarks } = useMarkStore()
 
   // 初始化时从 store 读取设置
@@ -63,6 +67,13 @@ export function ControlText() {
     }
     loadSetting()
   }, [])
+
+  // 打开对话框时初始化选中的标签
+  useEffect(() => {
+    if (open && currentTagId) {
+      setSelectedTagId(currentTagId)
+    }
+  }, [open, currentTagId])
 
   // 保存设置到 store
   const handleAutoReadChange = useCallback(async (checked: boolean) => {
@@ -127,11 +138,16 @@ export function ControlText() {
     }
 
     try {
+      const tagIdToUse = selectedTagId || currentTagId
       const store = await Store.load('store.json')
-      await store.set('currentTagId', currentTagId)
+      await store.set('currentTagId', tagIdToUse)
       await store.save()
 
-      await insertMark({ tagId: currentTagId, type: 'text', desc: resetText, content: resetText })
+      // 如果有标题，将其添加到内容开头
+      const finalContent = title.trim() ? `# ${title.trim()}\n\n${resetText}` : resetText
+      const finalDesc = title.trim() || resetText.slice(0, 100)
+
+      await insertMark({ tagId: tagIdToUse, type: 'text', desc: finalDesc, content: finalContent })
       await fetchMarks()
       await fetchTags()
       getCurrentTag()
@@ -142,6 +158,7 @@ export function ControlText() {
       handleRecordComplete(router)
 
       setText('')
+      setTitle('')
       setOpen(false)
     } catch (error) {
       console.error('Failed to save text record:', error)
@@ -158,13 +175,17 @@ export function ControlText() {
       onboardingPrefillRef.current = payload.prefillText
     }
     setOpen(true)
+    emitter.emit('edge-dialog-open')
     await checkClipboard()
   }, [checkClipboard])
 
   const handleOpenChange = useCallback(async (open: boolean) => {
     setOpen(open)
     if (open) {
+      emitter.emit('edge-dialog-open')
       await checkClipboard()
+    } else {
+      emitter.emit('edge-dialog-close')
     }
   }, [checkClipboard])
 
@@ -200,12 +221,44 @@ export function ControlText() {
                 {t('record.mark.text.description')}
               </DrawerDescription>
             </DrawerHeader>
-            <div className="px-4">
+            <div className="px-4 space-y-3">
+              {/* 标题输入 */}
+              <div>
+                <Label htmlFor="text-title-mobile" className="text-sm">{t('record.mark.text.titleLabel')}</Label>
+                <Input
+                  id="text-title-mobile"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder={t('record.mark.text.titlePlaceholder')}
+                  className="mt-1"
+                />
+              </div>
+              {/* 标签选择 */}
+              <div>
+                <Label htmlFor="text-tag-mobile" className="text-sm">{t('record.mark.text.selectTag')}</Label>
+                <Select
+                  value={String(selectedTagId || currentTagId)}
+                  onValueChange={(value) => setSelectedTagId(Number(value))}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder={t('record.mark.text.selectTag')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tags.map((tag) => (
+                      <SelectItem key={tag.id} value={String(tag.id)}>
+                        {tag.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* 内容输入 */}
               <Textarea
-                id="username"
-                rows={10}
+                id="text-content-mobile"
+                rows={8}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
+                placeholder={t('record.mark.text.contentPlaceholder')}
               />
             </div>
             <DrawerFooter className="flex items-center justify-between gap-4">
@@ -241,12 +294,46 @@ export function ControlText() {
                 {t('record.mark.text.description')}
               </DialogDescription>
             </DialogHeader>
-            <Textarea
-              id="username"
-              rows={10}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            />
+            <div className="space-y-3">
+              {/* 标题输入 */}
+              <div>
+                <Label htmlFor="text-title" className="text-sm">{t('record.mark.text.titleLabel')}</Label>
+                <Input
+                  id="text-title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder={t('record.mark.text.titlePlaceholder')}
+                  className="mt-1"
+                />
+              </div>
+              {/* 标签选择 */}
+              <div>
+                <Label htmlFor="text-tag" className="text-sm">{t('record.mark.text.selectTag')}</Label>
+                <Select
+                  value={String(selectedTagId || currentTagId)}
+                  onValueChange={(value) => setSelectedTagId(Number(value))}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder={t('record.mark.text.selectTag')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tags.map((tag) => (
+                      <SelectItem key={tag.id} value={String(tag.id)}>
+                        {tag.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* 内容输入 */}
+              <Textarea
+                id="text-content"
+                rows={10}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder={t('record.mark.text.contentPlaceholder')}
+              />
+            </div>
             <DialogFooter className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <Checkbox
