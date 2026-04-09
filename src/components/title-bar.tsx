@@ -39,6 +39,7 @@ import {
 } from '@dnd-kit/sortable'
 import { DraggableToolbarItem } from './draggable-toolbar-item'
 import { useToolbarShortcuts } from '@/hooks/use-toolbar-shortcuts'
+import useEdgeModeStore from '@/stores/edge-mode'
 
 type Platform = 'macos' | 'windows' | 'linux' | 'unknown'
 
@@ -54,6 +55,7 @@ export function TitleBar({ onSearchClick, onActivityClick, activityOpen = false 
   const pathname = usePathname()
   const router = useRouter()
   const { leftSidebarVisible, centerPanelVisible, rightSidebarVisible, toggleLeftSidebar, toggleCenterPanel, toggleRightSidebar } = useSidebarStore()
+  const { isEdgeMode, toggleEdgeMode } = useEdgeModeStore()
   
   // 检查关闭面板后是否会导致"仅左"状态或无面板状态
   const wouldCauseLeftOnly = (currentVisible: boolean, panel: 'left' | 'center' | 'right') => {
@@ -370,6 +372,53 @@ export function TitleBar({ onSearchClick, onActivityClick, activityOpen = false 
           </Tooltip>
           
           <AppStatus />
+
+          {/* 边缘速记模式按钮 */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`h-8 w-8 relative overflow-hidden group ${isEdgeMode ? 'bg-primary/10 text-primary hover:bg-primary/15' : ''}`}
+                onClick={toggleEdgeMode}
+              >
+                {/* 动态图标：展示窗口收缩到边缘的效果 */}
+                <div className="relative w-4 h-4">
+                  {/* 外框 - 代表屏幕 */}
+                  <div className="absolute inset-0 border border-current rounded-[2px] opacity-60" />
+
+                  {/* 内部窗口 - 会滑动到右侧边缘 */}
+                  <div
+                    className={`
+                      absolute top-[2px] bottom-[2px] left-[2px] w-[8px]
+                      bg-current rounded-[1px]
+                      transition-all duration-300 ease-out
+                      ${isEdgeMode
+                        ? 'right-[2px] left-auto w-[3px] opacity-80'
+                        : 'group-hover:w-[6px] group-hover:left-[6px]'
+                      }
+                    `}
+                  />
+
+                  {/* 边缘指示线 */}
+                  <div
+                    className={`
+                      absolute top-[2px] bottom-[2px] right-[2px] w-[2px]
+                      bg-primary rounded-[1px]
+                      transition-all duration-300
+                      ${isEdgeMode
+                        ? 'opacity-100 scale-y-110'
+                        : 'opacity-0 group-hover:opacity-50'
+                      }
+                    `}
+                  />
+                </div>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>{isEdgeMode ? t('edgeMode.exit') : t('edgeMode.enter')}</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         {/* Windows 控制按钮 */}
