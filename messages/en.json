@@ -1397,7 +1397,11 @@
         "description": "Record a piece of text, which will be inserted into the appropriate position when organizing notes.",
         "characterCount": "{count} characters",
         "save": "Save",
-        "autoReadClipboard": "Auto-read clipboard text"
+        "autoReadClipboard": "Auto-read clipboard text",
+        "titleLabel": "Title",
+        "titlePlaceholder": "Enter title (optional)",
+        "selectTag": "Select Tag",
+        "contentPlaceholder": "Enter text content..."
       },
       "link": {
         "title": "Record Link",
@@ -2090,6 +2094,15 @@
       "title": "AI Error",
       "noAddress": "Please set AI address first"
     }
+  },
+  "edgeMode": {
+    "title": "Edge Quick Note",
+    "enter": "Enter Edge Quick Note Mode",
+    "exit": "Exit Edge Quick Note Mode",
+    "expandToMain": "Expand to Main Window",
+    "markList": "Notes",
+    "noMarkSelected": "Select a note to view details",
+    "hoverToExpand": "Hover to expand"
   },
   "article": {
     "sync": {
