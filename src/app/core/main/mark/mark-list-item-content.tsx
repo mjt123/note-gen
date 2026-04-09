@@ -27,6 +27,19 @@ function compactText(value?: string) {
   return value?.replace(/\s+/g, ' ').trim() || ''
 }
 
+// 从 Markdown 内容中提取标题
+function extractMarkdownTitle(content?: string): string | null {
+  if (!content) return null
+  const lines = content.split('\n')
+  for (const line of lines) {
+    const match = line.match(/^#\s+(.+)$/)
+    if (match) {
+      return match[1].trim()
+    }
+  }
+  return null
+}
+
 function splitTitleAndPreview(value?: string) {
   const text = compactText(value)
   if (!text) {
@@ -59,6 +72,16 @@ export function parseTodoMarkContent(mark: Mark): ParsedTodoMark {
 export function getMarkListItemContent(mark: Mark): MarkListItemContent {
   switch (mark.type) {
   case 'text': {
+    // 优先从 Markdown 内容中提取标题
+    const markdownTitle = extractMarkdownTitle(mark.content)
+    if (markdownTitle) {
+      // 移除标题行后的内容作为预览
+      const contentWithoutTitle = mark.content?.replace(/^#\s+.+\n*/, '').trim() || ''
+      return {
+        title: markdownTitle,
+        preview: compactText(contentWithoutTitle) || markdownTitle,
+      }
+    }
     const fallback = compactText(mark.desc)
     const { title, preview } = splitTitleAndPreview(mark.content || mark.desc)
     return {
