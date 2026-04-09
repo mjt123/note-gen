@@ -112,13 +112,17 @@ export function ControlLink() {
 
   const handleOpen = useCallback(async () => {
     setOpen(true)
+    emitter.emit('edge-dialog-open')
     await checkClipboard()
   }, [checkClipboard])
 
   const handleOpenChange = useCallback(async (open: boolean) => {
     setOpen(open)
     if (open) {
+      emitter.emit('edge-dialog-open')
       await checkClipboard()
+    } else {
+      emitter.emit('edge-dialog-close')
     }
   }, [checkClipboard])
 
