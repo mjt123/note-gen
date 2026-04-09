@@ -26,6 +26,16 @@ import { SyncConfirmDialog } from "@/components/sync-confirm-dialog"
 import { applyThemeColors } from "@/lib/theme-utils"
 import emitter from "@/lib/emitter"
 import { isEditableKeyboardTarget } from "@/lib/is-editable-keyboard-target"
+import { EdgeModePanel } from "@/components/edge-mode-panel"
+import useEdgeModeStore from "@/stores/edge-mode"
+import { ControlText } from "@/app/core/main/mark/control-text"
+import { ControlRecording } from "@/app/core/main/mark/control-recording"
+import { ControlScan } from "@/app/core/main/mark/control-scan"
+import { ControlImage } from "@/app/core/main/mark/control-image"
+import { ControlLink } from "@/app/core/main/mark/control-link"
+import { ControlFile } from "@/app/core/main/mark/control-file"
+import { ControlTodo } from "@/app/core/main/mark/control-todo"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 export default function RootLayout({
   children,
@@ -38,6 +48,7 @@ export default function RootLayout({
   const { initShortcut } = useShortcutStore()
   const { initVectorDb } = useVectorStore()
   const { initUpdateStore, checkForUpdates } = useUpdateStore()
+  const { initEdgeMode, isEdgeMode } = useEdgeModeStore()
   const router = useRouter()
   const pathname = usePathname()
   const [searchOpen, setSearchOpen] = useState(false)
@@ -75,6 +86,7 @@ export default function RootLayout({
         initQuickRecordText()
         initShowWindow()
         initMcp()
+        initEdgeMode()
         reportAppStart()
 
         await initUpdateStore()
@@ -168,17 +180,36 @@ export default function RootLayout({
       disableTransitionOnChange
     >
       <TextSizeProvider>
-        <TitleBar
-          onSearchClick={() => setSearchOpen(true)}
-          onActivityClick={() => setActivityOpen(open => !open)}
-          activityOpen={activityOpen}
-        />
-        <main className="flex flex-1 flex-col overflow-hidden w-full h-[calc(100vh-36px)] mt-9">
-          {children}
-        </main>
-        <ActivityDrawer open={activityOpen} onOpenChange={setActivityOpen} />
-        <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
-        <SyncConfirmDialog />
+        {/* 主界面 - 边缘速记模式下隐藏 */}
+        {!isEdgeMode && (
+          <>
+            <TitleBar
+              onSearchClick={() => setSearchOpen(true)}
+              onActivityClick={() => setActivityOpen(open => !open)}
+              activityOpen={activityOpen}
+            />
+            <main className="flex flex-1 flex-col overflow-hidden w-full h-[calc(100vh-36px)] mt-9">
+              {children}
+            </main>
+            <ActivityDrawer open={activityOpen} onOpenChange={setActivityOpen} />
+            <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+            <SyncConfirmDialog />
+          </>
+        )}
+        {/* 边缘速记模式面板 */}
+        <EdgeModePanel />
+        {/* 隐藏的控制组件，用于边缘模式下监听 emitter 事件 */}
+        <TooltipProvider>
+          <div className="hidden">
+            <ControlText />
+            <ControlRecording />
+            <ControlScan />
+            <ControlImage />
+            <ControlLink />
+            <ControlFile />
+            <ControlTodo />
+          </div>
+        </TooltipProvider>
       </TextSizeProvider>
     </ThemeProvider>
   );
