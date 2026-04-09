@@ -23,7 +23,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { appDataDir } from "@tauri-apps/api/path";
 import { CheckSquare, ImageUp, RefreshCw, Settings2, Square } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { openPath } from "@tauri-apps/plugin-opener";
 import { Textarea } from "@/components/ui/textarea";
 import { AudioPlayer } from "@/components/audio-player";
 import { ImageViewer } from "@/components/image-viewer";
@@ -40,7 +40,8 @@ import { NO_TRANSCRIPTION_MESSAGE, transcribeRecording } from "@/lib/audio";
 import { getMarkTypeListBadgeClasses } from "./mark-type-meta";
 import { getMarkListItemContent } from "./mark-list-item-content";
 import { TodoEditTrigger } from "./todo-edit-button";
-import { canOpenMarkSource, getMarkOpenAction } from "./mark-open-path";
+import { canOpenMarkSource, getMarkOpenTargets } from "./mark-open-path";
+import { MarkdownPreviewEdit } from "@/components/markdown-preview-edit";
 
 dayjs.extend(relativeTime)
 
@@ -91,9 +92,10 @@ const DetailViewer = React.memo(({mark, content, path, className}: {mark: Mark, 
     await updateMark({ ...mark, desc: e.target.value })
   }, [mark, updateMark])
 
-  const textMarkChangeHandler = useCallback(async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setValue(e.target.value)
-    await updateMark({ ...mark, desc: e.target.value, content: e.target.value })
+  // 处理 Markdown 编辑保存
+  const handleMarkdownChange = useCallback(async (newText: string) => {
+    setValue(newText)
+    await updateMark({ ...mark, desc: newText, content: newText })
   }, [mark, updateMark])
 
   useEffect(() => {
@@ -134,8 +136,14 @@ const DetailViewer = React.memo(({mark, content, path, className}: {mark: Mark, 
           }
           <span className="block my-4 text-md text-zinc-900 font-bold">{markT('content')}</span>
           {
-            mark.type === "text" ? 
-            <Textarea placeholder="在此输入文本记录内容..." rows={14} value={value} onChange={textMarkChangeHandler} /> :
+            mark.type === "text" ?
+            <MarkdownPreviewEdit
+              text={value}
+              onTextChange={handleMarkdownChange}
+              textSize={recordTextSize}
+              maxHeight="calc(100vh - 280px)"
+              className="p-4 rounded-lg border bg-muted/30"
+            /> :
             <ChatPreview text={mark.content || ''} />
           }
         </div>
@@ -597,18 +605,13 @@ export const MarkItem = React.memo(({mark, variant = 'list'}: {mark: Mark, varia
     e?.stopPropagation()
     try {
       const appDir = await appDataDir()
-      const action = getMarkOpenAction(mark, appDir, 'folder')
+      const { folderPath } = getMarkOpenTargets(mark, appDir)
 
-      if (!action?.path) {
+      if (!folderPath) {
         return
       }
 
-      if (action.mode === 'reveal') {
-        await revealItemInDir(action.path)
-        return
-      }
-
-      await openPath(action.path)
+      await openPath(folderPath)
     } catch (error) {
       console.error('Failed to open source folder:', error)
     }
@@ -618,13 +621,13 @@ export const MarkItem = React.memo(({mark, variant = 'list'}: {mark: Mark, varia
     e?.stopPropagation()
     try {
       const appDir = await appDataDir()
-      const action = getMarkOpenAction(mark, appDir, 'file')
+      const { filePath } = getMarkOpenTargets(mark, appDir)
 
-      if (!action?.path) {
+      if (!filePath) {
         return
       }
 
-      await openPath(action.path)
+      await openPath(filePath)
     } catch (error) {
       console.error('Failed to open source file:', error)
     }
